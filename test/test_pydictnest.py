@@ -1,25 +1,83 @@
+import pytest
+from collections import defaultdict
 from pydictnest import (
-    flatten_dict,
-    unflatten_dict,
-    iterate_nested_dict,
     set_nested_value,
     get_nested_value,
+    has_nested_value,
+    iterate_nested_dict,
+    flatten_dict,
+    unflatten_dict,
 )
 
 
-def test_flatten_dict():
+def test_set_and_get_nested_value_simple():
+    d = {}
+    # set a simple nested value
+    set_nested_value(d, ["x", "y", "z"], 42)
+    assert d == {"x": {"y": {"z": 42}}}
+    # retrieve it
+    assert get_nested_value(d, ["x", "y", "z"]) == 42
+    assert get_nested_value(d, ["x", "a", "b"], default="missing") == "missing"
+    assert has_nested_value(d, ["x", "y", "z"])
+    assert not has_nested_value(d, ["x", "y", "q"])
+
+
+def test_set_overwrites_non_mapping_intermediate():
+    d = {"a": 1}
+    # existing non-mapping intermediate should be replaced by dict
+    set_nested_value(d, ["a", "b"], 100)
+    assert isinstance(d["a"], dict)
+    assert d["a"]["b"] == 100
+
+
+def test_iterate_nested_dict_and_round_trip():
+    inp = {"a": {"b": 1, "c": {"d": 2}}, "e": 3}
+    seen = {}
+    for path, value in iterate_nested_dict(inp):
+        # reconstruct value via get_nested_value
+        assert get_nested_value(inp, path) == value
+        # test set_nested_value assigns correctly
+        set_nested_value(inp, path, 999)
+        seen[tuple(path)] = True
+    # ensure all leaf paths were visited and updated
+    for path in seen:
+        assert get_nested_value(inp, list(path)) == 999
+
+
+def test_flatten_and_unflatten_round_trip():
     inp = {"a": {"b": 1.0, "c": 2.0, "d": {"e": "test"}}, "f": [1, 2]}
-    out_expected = {"a.b": 1.0, "a.c": 2.0, "a.d.e": "test", "f": [1, 2]}
+    flat = flatten_dict(inp, sep=".")
+    expected_flat = {"a.b": 1.0, "a.c": 2.0, "a.d.e": "test", "f": [1, 2]}
+    assert flat == expected_flat
+    # round-trip
+    unflat = unflatten_dict(flat, sep=".")
+    assert unflat == inp
 
-    out = flatten_dict(inp)
-    inp2 = unflatten_dict(out)
 
-    assert out == out_expected
-    assert inp == inp2
+def test_flatten_with_custom_dict_factory():
+    inp = {"x": {"y": 10}}
+    # use defaultdict as output
+    flat = flatten_dict(inp, sep="-", dict_factory=lambda: defaultdict(dict))
+    assert isinstance(flat, defaultdict)
+    assert flat["x-y"] == 10
 
-    for keys, value in iterate_nested_dict(inp):
-        assert value == get_nested_value(inp, keys)
-        set_nested_value(inp, keys, 1.0)
 
-    for keys, value in iterate_nested_dict(inp):
-        assert value == 1.0
+def test_unflatten_with_custom_factory_and_overwrite():
+    inp = {"m.n": 5, "m.p": 6}
+    # use defaultdict for nested dicts
+    unflat = unflatten_dict(inp, sep=".", dict_factory=lambda: defaultdict(dict))
+    assert isinstance(unflat, defaultdict)
+    assert unflat["m"]["n"] == 5
+    assert unflat["m"]["p"] == 6
+
+
+def test_error_on_nonexistent_intermediate_for_has_and_get():
+    d = {"u": 1}
+    # get_nested_value should return default if intermediate is not mapping
+    assert get_nested_value(d, ["u", "v"], default=None) is None
+    # has_nested_value should be False
+    assert not has_nested_value(d, ["u", "v"])
+
+
+if __name__ == "__main__":
+    pytest.main()

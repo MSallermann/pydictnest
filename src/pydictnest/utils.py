@@ -1,8 +1,12 @@
 from collections.abc import MutableMapping, Sequence, Callable
 from typing import Any, Union, Iterator, Tuple
 
+
 def set_nested_value(
-    dictionary: MutableMapping, keys: Sequence[str], value: Any, subdict_factory: Callable = dict
+    dictionary: MutableMapping,
+    keys: Sequence[str],
+    value: Any,
+    subdict_factory: Callable = dict,
 ) -> None:
     """
     Set a value in a nested dictionary structure, creating intermediate dictionaries as needed.
@@ -27,10 +31,15 @@ def set_nested_value(
         dictionary[keys[0]] = value
     else:
         first_key = keys[0]
-        if first_key not in dictionary or not isinstance(dictionary[first_key], MutableMapping):
+        if first_key not in dictionary or not isinstance(
+            dictionary[first_key], MutableMapping
+        ):
             dictionary[first_key] = subdict_factory()
         set_nested_value(
-            dictionary=dictionary[first_key], keys=keys[1:], value=value, subdict_factory=subdict_factory
+            dictionary=dictionary[first_key],
+            keys=keys[1:],
+            value=value,
+            subdict_factory=subdict_factory,
         )
 
 
@@ -55,7 +64,9 @@ def has_nested_value(dictionary: MutableMapping, keys: Sequence[str]) -> bool:
     if len(keys) <= 1:
         return keys[0] in dictionary
     first_key = keys[0]
-    if first_key not in dictionary or not isinstance(dictionary[first_key], MutableMapping):
+    if first_key not in dictionary or not isinstance(
+        dictionary[first_key], MutableMapping
+    ):
         return False
     return has_nested_value(dictionary=dictionary[first_key], keys=keys[1:])
 
@@ -84,12 +95,10 @@ def get_nested_value(
     if len(keys) <= 1:
         return dictionary.get(keys[0], default)
     first_key = keys[0]
-    subdict = dictionary.get(first_key)
+    subdict = dictionary.get(first_key, default)
     if not isinstance(subdict, MutableMapping):
         return default
-    return get_nested_value(
-        dictionary=subdict, keys=keys[1:], default=default
-    )
+    return get_nested_value(dictionary=subdict, keys=keys[1:], default=default)
 
 
 def iterate_nested_dict(
@@ -119,7 +128,7 @@ def iterate_nested_dict(
 
 
 def flatten_dict(
-    dictionary: MutableMapping, sep: str = '.', dict_factory: Callable = dict
+    dictionary: MutableMapping, sep: str = ".", dict_factory: Callable = dict
 ) -> MutableMapping:
     """
     Flatten a nested dictionary into a single-level dict with concatenated keys.
@@ -145,7 +154,7 @@ def flatten_dict(
 
 
 def unflatten_dict(
-    dictionary: MutableMapping, sep: str = '.', dict_factory: Callable = dict
+    dictionary: MutableMapping, sep: str = ".", dict_factory: Callable = dict
 ) -> MutableMapping:
     """
     Reconstruct a nested dictionary from a flattened dictionary.
