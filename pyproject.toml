@@ -3,3 +3,15 @@ name = "pydictnest"
 version = "0.1.0"
 requires-python = ">= 3.9"
 authors = [{ name = "Moritz Sallermann", email = "moritzsallermann@gmail.com" }]
+description = "A small package, which provides functions for working with nested dictionaries."
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/MSallermann/pydictnest"
+Issues = "https://github.com/MSallermann/pydictnest/issues"
