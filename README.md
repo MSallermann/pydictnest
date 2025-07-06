@@ -79,6 +79,14 @@ Return `True` if a deep key-path exists, otherwise `False`.
 
 Yields `(key_path, value)` tuples for each leaf node in a nested mapping.
 
+### `keys_nested(d)`
+
+Yields `key_path` for each leaf node in a nested mapping.
+
+### `values_nested(d)`
+
+Yields `value` for each leaf node in a nested mapping.
+
 ### `flatten_dict(dictionary, sep='.', dict_factory=dict)`
 
 Convert a nested dict into a flat dict by joining keys with `sep`.

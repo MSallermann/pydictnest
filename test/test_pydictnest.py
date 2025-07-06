@@ -5,6 +5,8 @@ from pydictnest import (
     get_nested,
     has_nested,
     items_nested,
+    keys_nested,
+    values_nested,
     flatten_dict,
     unflatten_dict,
 )
@@ -77,6 +79,16 @@ def test_error_on_nonexistent_intermediate_for_has_and_get():
     assert get_nested(d, ["u", "v"], default=None) is None
     # has_nested should be False
     assert not has_nested(d, ["u", "v"])
+
+
+def test_keys_and_values():
+    inp = {"a": {"b": 1, "c": {"d": 2}}, "e": 3}
+
+    keys = list(keys_nested(inp))
+    values = list(values_nested(inp))
+    items = list(items_nested(inp))
+
+    assert list(zip(keys, values)) == items
 
 
 if __name__ == "__main__":

@@ -127,6 +127,18 @@ def items_nested(
             yield current_path, value
 
 
+def keys_nested(d: MutableMapping) -> Iterator[Sequence[str]]:
+    """Yield all key paths in a nested dictionary in depth-first order."""
+    for k, _ in items_nested(d):
+        yield k
+
+
+def values_nested(d: MutableMapping) -> Iterator[Any]:
+    """Yield all values in a nested dictionary in depth-first order."""
+    for _, v in items_nested(d):
+        yield v
+
+
 def flatten_dict(
     dictionary: MutableMapping, sep: str = ".", dict_factory: Callable = dict
 ) -> MutableMapping:
