@@ -30,25 +30,25 @@ Should be quite obvious. Here is a small writeup (mostly take from the unit test
 
 ```python
 from pydictnest import (
-    set_nested_value, get_nested_value, has_nested_value,
-    iterate_nested_dict, flatten_dict, unflatten_dict
+    set_nested, get_nested, has_nested,
+    items_nested, flatten_dict, unflatten_dict
 )
 
 # Start with an empty dict
 data = {}
-set_nested_value(data, ['a', 'b', 'c'], 123)
+set_nested(data, ['a', 'b', 'c'], 123)
 # data == {'a': {'b': {'c': 123}}}
 
 # Retrieve values
-val = get_nested_value(data, ['a', 'b', 'c'])        # 123
-missing = get_nested_value(data, ['x', 'y'], default=0) # 0
+val = get_nested(data, ['a', 'b', 'c'])        # 123
+missing = get_nested(data, ['x', 'y'], default=0) # 0
 
 # Check existence
-assert has_nested_value(data, ['a', 'b', 'c'])
-assert not has_nested_value(data, ['a', 'z'])
+assert has_nested(data, ['a', 'b', 'c'])
+assert not has_nested(data, ['a', 'z'])
 
 # Iterate over all leaf nodes
-for path, value in iterate_nested_dict(data):
+for path, value in items_nested(data):
     print(path, value)
     # ['a', 'b', 'c'] 123
 
@@ -63,19 +63,19 @@ roundtrip = unflatten_dict(flat, sep='.')
 
 ## API Reference
 
-### `set_nested_value(dictionary, keys, value, subdict_factory=dict)`
+### `set_nested(dictionary, keys, value, subdict_factory=dict)`
 
 Set a value at the specified nested key-path, creating sub-dicts with `subdict_factory`.
 
-### `get_nested_value(dictionary, keys, default=None)`
+### `get_nested(dictionary, keys, default=None)`
 
 Retrieve a deep value, returning `default` if any key is missing.
 
-### `has_nested_value(dictionary, keys)`
+### `has_nested(dictionary, keys)`
 
 Return `True` if a deep key-path exists, otherwise `False`.
 
-### `iterate_nested_dict(d, subkeys=[])`
+### `items_nested(d, subkeys=[])`
 
 Yields `(key_path, value)` tuples for each leaf node in a nested mapping.
 

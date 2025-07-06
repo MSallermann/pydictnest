@@ -2,7 +2,7 @@ from collections.abc import MutableMapping, Sequence, Callable
 from typing import Any, Union, Iterator, Tuple
 
 
-def set_nested_value(
+def set_nested(
     dictionary: MutableMapping,
     keys: Sequence[str],
     value: Any,
@@ -23,7 +23,7 @@ def set_nested_value(
 
     Example:
         >>> d = {}
-        >>> set_nested_value(d, ['a', 'b', 'c'], 1)
+        >>> set_nested(d, ['a', 'b', 'c'], 1)
         >>> print(d)
         {'a': {'b': {'c': 1}}}
     """
@@ -35,7 +35,7 @@ def set_nested_value(
             dictionary[first_key], MutableMapping
         ):
             dictionary[first_key] = subdict_factory()
-        set_nested_value(
+        set_nested(
             dictionary=dictionary[first_key],
             keys=keys[1:],
             value=value,
@@ -43,7 +43,7 @@ def set_nested_value(
         )
 
 
-def has_nested_value(dictionary: MutableMapping, keys: Sequence[str]) -> bool:
+def has_nested(dictionary: MutableMapping, keys: Sequence[str]) -> bool:
     """
     Determine whether a nested key path exists in a dictionary.
 
@@ -56,9 +56,9 @@ def has_nested_value(dictionary: MutableMapping, keys: Sequence[str]) -> bool:
 
     Example:
         >>> d = {'a': {'b': 2}}
-        >>> has_nested_value(d, ['a', 'b'])
+        >>> has_nested(d, ['a', 'b'])
         True
-        >>> has_nested_value(d, ['a', 'c'])
+        >>> has_nested(d, ['a', 'c'])
         False
     """
     if len(keys) <= 1:
@@ -68,10 +68,10 @@ def has_nested_value(dictionary: MutableMapping, keys: Sequence[str]) -> bool:
         dictionary[first_key], MutableMapping
     ):
         return False
-    return has_nested_value(dictionary=dictionary[first_key], keys=keys[1:])
+    return has_nested(dictionary=dictionary[first_key], keys=keys[1:])
 
 
-def get_nested_value(
+def get_nested(
     dictionary: MutableMapping, keys: Sequence[str], default: Any = None
 ) -> Any:
     """
@@ -87,9 +87,9 @@ def get_nested_value(
 
     Example:
         >>> d = {'a': {'b': 3}}
-        >>> get_nested_value(d, ['a', 'b'])
+        >>> get_nested(d, ['a', 'b'])
         3
-        >>> get_nested_value(d, ['a', 'c'], default=0)
+        >>> get_nested(d, ['a', 'c'], default=0)
         0
     """
     if len(keys) <= 1:
@@ -98,14 +98,14 @@ def get_nested_value(
     subdict = dictionary.get(first_key, default)
     if not isinstance(subdict, MutableMapping):
         return default
-    return get_nested_value(dictionary=subdict, keys=keys[1:], default=default)
+    return get_nested(dictionary=subdict, keys=keys[1:], default=default)
 
 
-def iterate_nested_dict(
+def items_nested(
     d: MutableMapping, subkeys: Sequence[str] = []
 ) -> Iterator[Tuple[Sequence[str], Any]]:
     """
-    Yield all key paths and corresponding values in a nested dictionary.
+    Yield all key paths and corresponding values in a nested dictionary in depth-first order.
 
     Args:
         d (MutableMapping): The dictionary to iterate.
@@ -116,13 +116,13 @@ def iterate_nested_dict(
 
     Example:
         >>> inp = {'a': {'b': 1, 'c': {'d': 2}}, 'e': 3}
-        >>> list(iterate_nested_dict(inp))
+        >>> list(items_nested(inp))
         [(['a', 'b'], 1), (['a', 'c', 'd'], 2), (['e'], 3)]
     """
     for key, value in d.items():
         current_path = subkeys + [key]
         if isinstance(value, MutableMapping):
-            yield from iterate_nested_dict(value, subkeys=current_path)
+            yield from items_nested(value, subkeys=current_path)
         else:
             yield current_path, value
 
@@ -147,7 +147,7 @@ def flatten_dict(
         {'a:b': 1, 'a:c:d': 2, 'e': 3}
     """
     result = dict_factory()
-    for path, value in iterate_nested_dict(dictionary):
+    for path, value in items_nested(dictionary):
         flat_key = sep.join(path)
         result[flat_key] = value
     return result
@@ -175,5 +175,5 @@ def unflatten_dict(
     result = dict_factory()
     for flat_key, value in dictionary.items():
         keys = flat_key.split(sep)
-        set_nested_value(result, keys, value, subdict_factory=dict_factory)
+        set_nested(result, keys, value, subdict_factory=dict_factory)
     return result
