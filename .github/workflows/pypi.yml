@@ -40,12 +40,8 @@ jobs:
       name: testpypi
       url: https://test.pypi.org/p/pydictnest
     permissions:
-      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
-    # retrieve your distributions here
-      - name: Check out code
-        uses: actions/checkout@v4
-
       - name: Download built distributions
         uses: actions/download-artifact@v4
         with:
@@ -56,6 +52,8 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          verbose: true
+          skip-existing: true
 
   test-install-from-test-pypi:
     needs: test-pypi-publish
@@ -86,9 +84,6 @@ jobs:
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
-    # retrieve your distributions here
-      - name: Check out code
-        uses: actions/checkout@v4
 
       - name: Download built distributions
         uses: actions/download-artifact@v4
@@ -98,3 +93,6 @@ jobs:
 
       - name: Publish package distributions to pypi
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          skip-existing: true
