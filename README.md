@@ -10,13 +10,19 @@ Nothing fancy. Just a lightweight Python package for some basic work with nested
 
 ## Installation
 
-Install via pip:
+Install via pip with
+
+```bash
+pip install pydictnest
+```
+
+or from the newest source with
 
 ```bash
 pip install git+https://github.com/MSallermann/pydictnest.git
 ```
 
-Or clone the repo and install locally:
+You can also clone the repo and install locally
 
 ```bash
 git clone https://github.com/MSallermann/pydictnest.git
