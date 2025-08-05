@@ -1,6 +1,6 @@
 [project]
 name = "pydictnest"
-version = "0.2.0"
+version = "0.2.1"
 requires-python = ">= 3.9"
 authors = [{ name = "Moritz Sallermann", email = "moritzsallermann@gmail.com" }]
 description = "A small package, which provides functions for working with nested dictionaries."
