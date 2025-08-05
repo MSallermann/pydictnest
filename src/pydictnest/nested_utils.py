@@ -1,12 +1,15 @@
 from collections.abc import MutableMapping, Sequence, Callable
-from typing import Any, Union, Iterator, Tuple
+from typing import Any, Iterator, Tuple, TypeVar
+
+StringListLike = TypeVar("StringListLike", bound=Sequence[str])
+DictLike = TypeVar("DictLike", bound=MutableMapping[str, Any])
 
 
 def set_nested(
-    dictionary: MutableMapping,
+    dictionary: DictLike,
     keys: Sequence[str],
     value: Any,
-    subdict_factory: Callable = dict,
+    subdict_factory: Callable[[], DictLike] = dict,
 ) -> None:
     """
     Set a value in a nested dictionary structure, creating intermediate dictionaries as needed.
@@ -43,7 +46,7 @@ def set_nested(
         )
 
 
-def has_nested(dictionary: MutableMapping, keys: Sequence[str]) -> bool:
+def has_nested(dictionary: MutableMapping[str, Any], keys: Sequence[str]) -> bool:
     """
     Determine whether a nested key path exists in a dictionary.
 
@@ -72,7 +75,7 @@ def has_nested(dictionary: MutableMapping, keys: Sequence[str]) -> bool:
 
 
 def get_nested(
-    dictionary: MutableMapping, keys: Sequence[str], default: Any = None
+    dictionary: MutableMapping[str, Any], keys: Sequence[str], default: Any = None
 ) -> Any:
     """
     Retrieve a value from a nested dictionary, returning a default if any key is missing.
@@ -102,7 +105,7 @@ def get_nested(
 
 
 def items_nested(
-    d: MutableMapping, subkeys: Sequence[str] = []
+    d: MutableMapping[str, Any], subkeys: Sequence[str] | None = None
 ) -> Iterator[Tuple[Sequence[str], Any]]:
     """
     Yield all key paths and corresponding values in a nested dictionary in depth-first order.
@@ -119,29 +122,33 @@ def items_nested(
         >>> list(items_nested(inp))
         [(['a', 'b'], 1), (['a', 'c', 'd'], 2), (['e'], 3)]
     """
+
+    if subkeys is None:
+        subkeys = []
+
     for key, value in d.items():
-        current_path = subkeys + [key]
+        current_path = list(subkeys) + [key]
         if isinstance(value, MutableMapping):
             yield from items_nested(value, subkeys=current_path)
         else:
             yield current_path, value
 
 
-def keys_nested(d: MutableMapping) -> Iterator[Sequence[str]]:
+def keys_nested(d: MutableMapping[str, Any]) -> Iterator[Sequence[str]]:
     """Yield all key paths in a nested dictionary in depth-first order."""
     for k, _ in items_nested(d):
         yield k
 
 
-def values_nested(d: MutableMapping) -> Iterator[Any]:
+def values_nested(d: MutableMapping[str, Any]) -> Iterator[Any]:
     """Yield all values in a nested dictionary in depth-first order."""
     for _, v in items_nested(d):
         yield v
 
 
 def flatten_dict(
-    dictionary: MutableMapping, sep: str = ".", dict_factory: Callable = dict
-) -> MutableMapping:
+    dictionary: DictLike, sep: str = ".", dict_factory: Callable[[], DictLike] = dict
+) -> DictLike:
     """
     Flatten a nested dictionary into a single-level dict with concatenated keys.
 
@@ -166,18 +173,20 @@ def flatten_dict(
 
 
 def unflatten_dict(
-    dictionary: MutableMapping, sep: str = ".", dict_factory: Callable = dict
-) -> MutableMapping:
+    dictionary: MutableMapping[str, Any],
+    sep: str = ".",
+    dict_factory: Callable[[], DictLike] = dict,
+) -> DictLike:
     """
     Reconstruct a nested dictionary from a flattened dictionary.
 
     Args:
-        dictionary (MutableMapping): Flat dictionary with joined keys.
+        dictionary (DictLike): Flat dictionary with joined keys.
         sep (str, optional): Separator used in flat keys. Defaults to '.'.
         dict_factory (Callable, optional): Factory for intermediate dictionaries. Defaults to dict.
 
     Returns:
-        MutableMapping: A new nested dictionary.
+        DictLike: A new nested dictionary.
 
     Example:
         >>> inp = {'a.b': 1, 'a.c.d': 2, 'e': 3}
