@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator, MutableMapping, Sequence
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 StringListLike = TypeVar("StringListLike", bound=Sequence[str])
 DictLike = TypeVar("DictLike", bound=MutableMapping[str, Any])
@@ -105,9 +105,17 @@ def get_nested(
         return dictionary.get(keys[0], default)
     first_key = keys[0]
     subdict = dictionary.get(first_key, default)
+
     if not isinstance(subdict, MutableMapping):
         return default
-    return get_nested(dictionary=subdict, keys=keys[1:], default=default)
+
+    # We assume any mutable mapping has `str` as keys, but we do not explicitly check this
+    # hence the cast(...)
+    return get_nested(
+        dictionary=cast("MutableMapping[str, Any]", subdict),
+        keys=keys[1:],
+        default=default,
+    )
 
 
 def items_nested(
@@ -135,7 +143,11 @@ def items_nested(
     for key, value in d.items():
         current_path = [*list(subkeys), key]
         if isinstance(value, MutableMapping):
-            yield from items_nested(value, subkeys=current_path)
+            # We assume any mutable mapping has `str` as keys, but we do not explicitly check this
+            # hence the cast(...)
+            yield from items_nested(
+                cast("MutableMapping[str, Any]", value), subkeys=current_path
+            )
         else:
             yield current_path, value
 
