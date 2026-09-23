@@ -1,5 +1,6 @@
 import pytest
 from collections import defaultdict
+from types import MappingProxyType
 from pydictnest import (
     set_nested,
     get_nested,
@@ -89,6 +90,44 @@ def test_keys_and_values():
     items = list(items_nested(inp))
 
     assert list(zip(keys, values)) == items
+
+
+def test_read_only_mappings():
+    nested = MappingProxyType(
+        {
+            "a": MappingProxyType({"b": 1, "c": MappingProxyType({"d": 2})}),
+            "e": 3,
+        }
+    )
+
+    assert has_nested(nested, ["a", "c", "d"])
+    assert get_nested(nested, ["a", "b"]) == 1
+    assert list(items_nested(nested)) == [
+        (["a", "b"], 1),
+        (["a", "c", "d"], 2),
+        (["e"], 3),
+    ]
+    assert list(keys_nested(nested)) == [["a", "b"], ["a", "c", "d"], ["e"]]
+    assert list(values_nested(nested)) == [1, 2, 3]
+    assert flatten_dict(nested) == {"a.b": 1, "a.c.d": 2, "e": 3}
+
+    flat = MappingProxyType({"a.b": 1, "a.c.d": 2, "e": 3})
+    assert unflatten_dict(flat) == {"a": {"b": 1, "c": {"d": 2}}, "e": 3}
+
+
+@pytest.mark.parametrize("function", [set_nested, has_nested, get_nested])
+def test_empty_key_path_raises_value_error(function):
+    with pytest.raises(ValueError, match="at least one key"):
+        if function is set_nested:
+            function({}, [], 1)
+        else:
+            function({}, [])
+
+
+def test_get_nested_returns_mapping_default_without_traversing_it():
+    default = {"child": "not a nested result"}
+
+    assert get_nested({}, ["missing", "child"], default=default) is default
 
 
 if __name__ == "__main__":

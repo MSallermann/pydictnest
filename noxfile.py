@@ -6,3 +6,10 @@ def tests(session):
     session.install("pytest")
     session.install(".")
     session.run("pytest")
+
+
+@nox.session
+def typing(session):
+    session.install("pyright")
+    session.install(".")
+    session.run("pyright")

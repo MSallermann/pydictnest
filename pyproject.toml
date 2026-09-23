@@ -16,6 +16,12 @@ license-files = ["LICEN[CS]E*"]
 Homepage = "https://github.com/MSallermann/pydictnest"
 Issues = "https://github.com/MSallermann/pydictnest/issues"
 
+[tool.setuptools.package-data]
+pydictnest = ["py.typed"]
+
+[tool.pyright]
+include = ["src/pydictnest", "test/static_typing.py"]
+
 [tool.ruff]
 line-length = 85
 
