@@ -65,6 +65,15 @@ def test_flatten_with_custom_dict_factory():
     assert flat["x-y"] == 10
 
 
+@pytest.mark.parametrize(
+    "source",
+    [{"a.b": 1}, {"a": {"b.c": 1}}, {"a.b": {}}],
+)
+def test_flatten_rejects_keys_containing_separator(source):
+    with pytest.raises(ValueError, match="contains separator"):
+        flatten_dict(source)
+
+
 def test_unflatten_with_custom_factory_and_overwrite():
     inp = {"m.n": 5, "m.p": 6}
     # use defaultdict for nested dicts
@@ -72,6 +81,25 @@ def test_unflatten_with_custom_factory_and_overwrite():
     assert isinstance(unflat, defaultdict)
     assert unflat["m"]["n"] == 5
     assert unflat["m"]["p"] == 6
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        {"a": 1, "a.b": 2},
+        {"a.b": 2, "a": 1},
+        {"a.b.c": 3, "a.b": 2},
+    ],
+)
+def test_unflatten_rejects_conflicting_paths(source):
+    with pytest.raises(ValueError, match="both a value and a parent"):
+        unflatten_dict(source)
+
+
+@pytest.mark.parametrize("function", [flatten_dict, unflatten_dict])
+def test_flatten_functions_reject_empty_separator(function):
+    with pytest.raises(ValueError, match="sep must not be empty"):
+        function({"a": 1}, sep="")
 
 
 def test_error_on_nonexistent_intermediate_for_has_and_get():

@@ -26,6 +26,27 @@ def _require_keys(keys: Sequence[str]) -> None:
         raise ValueError(msg)
 
 
+def _require_separator(sep: str) -> None:
+    if not sep:
+        msg = "sep must not be empty"
+        raise ValueError(msg)
+
+
+def _require_keys_without_separator(
+    dictionary: Mapping[str, object],
+    sep: str,
+) -> None:
+    for key, value in dictionary.items():
+        if sep in key:
+            msg = f"key {key!r} contains separator {sep!r}"
+            raise ValueError(msg)
+        if isinstance(value, Mapping):
+            _require_keys_without_separator(
+                cast("Mapping[str, object]", value),
+                sep,
+            )
+
+
 def set_nested(
     dictionary: MutableMapping[str, Any],
     keys: Sequence[str],
@@ -249,12 +270,18 @@ def flatten_dict(
     Returns:
         MutableMapping: A new flattened dictionary.
 
+    Raises:
+        ValueError: If ``sep`` is empty or a source key contains ``sep``.
+
     Example:
         >>> inp = {"a": {"b": 1, "c": {"d": 2}}, "e": 3}
         >>> flatten_dict(inp, sep=":")
         {'a:b': 1, 'a:c:d': 2, 'e': 3}
 
     """
+    _require_separator(sep)
+    _require_keys_without_separator(dictionary, sep)
+
     result = dict_factory()
     for path, value in items_nested(dictionary):
         flat_key = sep.join(path)
@@ -305,14 +332,35 @@ def unflatten_dict(
     Returns:
         MutableMapping: A new nested mapping produced by ``dict_factory``.
 
+    Raises:
+        ValueError: If ``sep`` is empty or flattened paths conflict because one
+            path is also the parent of another path.
+
     Example:
         >>> inp = {"a.b": 1, "a.c.d": 2, "e": 3}
         >>> unflatten_dict(inp, sep=".")
         {'a': {'b': 1, 'c': {'d': 2}}, 'e': 3}
 
     """
+    _require_separator(sep)
+
+    entries = [
+        (flat_key.split(sep), value) for flat_key, value in dictionary.items()
+    ]
+    paths = {tuple(keys) for keys, _ in entries}
+    for keys, _ in entries:
+        for length in range(1, len(keys)):
+            prefix = tuple(keys[:length])
+            if prefix in paths:
+                prefix_key = sep.join(prefix)
+                flat_key = sep.join(keys)
+                msg = (
+                    f"conflicting flattened paths: {prefix_key!r} is both a value "
+                    f"and a parent of {flat_key!r}"
+                )
+                raise ValueError(msg)
+
     result = dict_factory()
-    for flat_key, value in dictionary.items():
-        keys = flat_key.split(sep)
+    for keys, value in entries:
         set_nested(result, keys, value, subdict_factory=dict_factory)
     return result

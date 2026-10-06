@@ -165,13 +165,17 @@ and intermediate mappings.
 
 ## Flattening constraints
 
-Keys must be strings. The separator is not escaped, so a key that already
-contains `sep` cannot be distinguished from a nested path during unflattening.
-Empty nested mappings also contain no leaf to emit and therefore are not
-preserved by a flatten/unflatten round trip.
+Keys must be strings and `sep` must not be empty. Because the separator is not
+escaped, `flatten_dict` raises `ValueError` if any source key contains `sep`.
+Empty nested mappings contain no leaf to emit and therefore are not preserved
+by a flatten/unflatten round trip.
 
 Choose a separator that cannot occur in the source keys when round-trip
 reconstruction is required.
+
+`unflatten_dict` also raises `ValueError` for conflicting paths such as `"a"`
+and `"a.b"`, where one path would otherwise overwrite the other depending on
+input order.
 
 ## Development
 
