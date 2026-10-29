@@ -13,6 +13,9 @@ The package can:
 - Reconstruct a nested mapping from flattened keys.
 - Read immutable `Mapping` implementations without copying them first.
 - Preserve the concrete mutable mapping type produced by a custom factory.
+- Read, write, and traverse mixed dictionaries and lists with typed paths.
+- Distinguish a missing mixed path from an explicit null value.
+- Preserve empty containers during generic JSON-compatible traversal.
 
 ## Installation
 
@@ -36,9 +39,13 @@ The package supports Python 3.9 and newer.
 from pydictnest import (
     flatten_dict,
     get_nested,
+    get_path,
     has_nested,
+    has_path,
     items_nested,
+    items_path,
     set_nested,
+    set_path,
     unflatten_dict,
 )
 
@@ -63,6 +70,18 @@ assert flat == {
 }
 
 assert unflatten_dict(flat) == data
+
+payload = {"runs": [{"score": None}], "metadata": {}}
+set_path(payload, ("runs", 1, "score"), 0.93)
+
+assert has_path(payload, ("runs", 0, "score"))
+assert get_path(payload, ("runs", 1, "score")) == 0.93
+assert not has_path(payload, ("runs", 2, "score"))
+assert list(items_path(payload)) == [
+    (("runs", 0, "score"), None),
+    (("runs", 1, "score"), 0.93),
+    (("metadata",), {}),
+]
 ```
 
 ### Read-only mappings
@@ -88,7 +107,8 @@ assert flatten_dict(parameters) == {
 }
 ```
 
-Only `set_nested` requires a `MutableMapping`, because it modifies its input.
+`set_nested` and `set_path` require mutable containers because they modify
+their inputs.
 
 ### Custom output mappings
 
@@ -150,6 +170,27 @@ Yield the `list[str]` path of every leaf node.
 ### `values_nested(dictionary)`
 
 Yield every leaf value in depth-first insertion order.
+
+### `get_path(value, path, default=None)` and `has_path(value, path)`
+
+Read or test a path containing string mapping keys and integer list indices.
+An empty path addresses the input itself. `has_path` remains true for an
+explicit `None`, allowing callers to distinguish JSON null from missing data.
+
+### `set_path(container, path, value, subdict_factory=dict, list_factory=list)`
+
+Set a value using string mapping keys and non-negative integer list indices.
+Missing intermediate dictionaries and lists are created based on the next path
+segment. `subdict_factory` and `list_factory` control the concrete mutable
+container types. Lists are extended with `None` when needed, and incompatible
+intermediate values are replaced. An empty path raises `ValueError`.
+
+### `items_path(value, path=(), *, include_containers=False, preserve_empty=True, max_depth=None)`
+
+Traverse mappings and lists and yield `(tuple_path, value)` pairs. Leaves and,
+by default, empty containers are retained. Container values and depth limiting
+are optional. This API is independent of the mapping-only `items_nested`
+behavior, which remains unchanged for backward compatibility.
 
 ### `flatten_dict(dictionary, sep=".", dict_factory=dict)`
 

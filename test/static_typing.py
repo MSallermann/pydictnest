@@ -14,6 +14,7 @@ from pydictnest import (
     unflatten_dict,
     values_nested,
     set_nested,
+    set_path,
 )
 
 if TYPE_CHECKING:
@@ -42,5 +43,13 @@ if TYPE_CHECKING:
 
     mutable_mapping: UserDict[str, Any] = UserDict()
     set_nested(mutable_mapping, ["a", "b"], 1)
+    set_path(
+        mutable_mapping,
+        ["a", 0, "b"],
+        1,
+        subdict_factory=UserDict,
+        list_factory=list,
+    )
+    set_path([], [0, "a"], 1)
 
     flatten_dict(["not", "a", "mapping"])  # pyright: ignore[reportArgumentType]

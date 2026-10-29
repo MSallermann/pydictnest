@@ -1,23 +1,224 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping, MutableMapping, Sequence
-from typing import Any, TypeVar, cast, overload
+from collections.abc import (
+    Callable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    Sequence,
+)
+from typing import Any, TypeVar, Union, cast, overload
 
 __all__ = [
     "flatten_dict",
     "get_nested",
+    "get_path",
     "has_nested",
+    "has_path",
     "items_nested",
+    "items_path",
     "keys_nested",
     "set_nested",
+    "set_path",
     "unflatten_dict",
     "values_nested",
 ]
+
+PathSegment = Union[str, int]
 
 # The input and output mapping types are deliberately independent. These helpers
 # only read the input, while ``dict_factory`` determines the concrete mutable
 # mapping type they create and return.
 _OutputMappingT = TypeVar("_OutputMappingT", bound=MutableMapping[str, Any])
+
+
+def get_path(
+    value: Any,
+    path: Sequence[PathSegment],
+    default: Any = None,
+) -> Any:
+    """Return a value from a mixed mapping/list path.
+
+    String segments address mapping keys and integer segments address sequence
+    indices. Strings and bytes are treated as scalar values, not sequences.
+    Unlike :func:`get_nested`, an empty path returns the input value.
+    """
+    current = value
+    for segment in path:
+        if isinstance(segment, str) and isinstance(current, Mapping):
+            if segment not in current:
+                return default
+            current = current[segment]
+        elif (
+            isinstance(segment, int)
+            and not isinstance(segment, bool)
+            and isinstance(current, Sequence)
+            and not isinstance(current, (str, bytes, bytearray))
+            and 0 <= segment < len(current)
+        ):
+            current = current[segment]
+        else:
+            return default
+    return current
+
+
+def has_path(value: Any, path: Sequence[PathSegment]) -> bool:
+    """Return whether a mixed mapping/list path exists, including null values."""
+    missing = object()
+    return get_path(value, path, missing) is not missing
+
+
+def _require_path(path: Sequence[PathSegment]) -> None:
+    if not path:
+        msg = "path must contain at least one segment"
+        raise ValueError(msg)
+    for segment in path:
+        if isinstance(segment, bool) or not isinstance(segment, (str, int)):
+            msg = "path segments must be strings or integers"
+            raise TypeError(msg)
+        if isinstance(segment, int) and segment < 0:
+            msg = "path indices must be non-negative"
+            raise ValueError(msg)
+
+
+def _is_path_container(value: Any, segment: PathSegment) -> bool:
+    if isinstance(segment, str):
+        return isinstance(value, MutableMapping)
+    return isinstance(value, MutableSequence) and not isinstance(value, bytearray)
+
+
+def _new_path_container(
+    segment: PathSegment,
+    subdict_factory: Callable[[], MutableMapping[str, Any]],
+    list_factory: Callable[[], MutableSequence[Any]],
+) -> MutableMapping[str, Any] | MutableSequence[Any]:
+    factory = subdict_factory if isinstance(segment, str) else list_factory
+    container = factory()
+    if not _is_path_container(container, segment):
+        factory_name = (
+            "subdict_factory" if isinstance(segment, str) else "list_factory"
+        )
+        expected = (
+            "a mutable mapping" if isinstance(segment, str) else "a mutable sequence"
+        )
+        msg = f"{factory_name} must return {expected}"
+        raise TypeError(msg)
+    return container
+
+
+def set_path(
+    container: MutableMapping[str, Any] | MutableSequence[Any],
+    path: Sequence[PathSegment],
+    value: Any,
+    subdict_factory: Callable[[], MutableMapping[str, Any]] = dict,
+    list_factory: Callable[[], MutableSequence[Any]] = list,
+) -> None:
+    """Set a value at a mixed mapping/list path.
+
+    Missing or incompatible intermediate values are replaced with dictionaries
+    or lists according to the next path segment and the corresponding factory.
+    Lists are extended with ``None`` when an index is beyond their current
+    length.
+    """
+    _require_path(path)
+    current: Any = container
+
+    for position, segment in enumerate(path):
+        is_last = position == len(path) - 1
+        if isinstance(segment, str):
+            if not isinstance(current, MutableMapping):
+                msg = (
+                    f"cannot use mapping key {segment!r} on {type(current).__name__}"
+                )
+                raise TypeError(msg)
+            if is_last:
+                current[segment] = value
+                return
+            child = current.get(segment)
+            next_segment = path[position + 1]
+            if not _is_path_container(child, next_segment):
+                child = _new_path_container(
+                    next_segment,
+                    subdict_factory,
+                    list_factory,
+                )
+                current[segment] = child
+        else:
+            if not isinstance(current, MutableSequence) or isinstance(
+                current, bytearray
+            ):
+                msg = f"cannot use sequence index {segment} on {type(current).__name__}"
+                raise TypeError(msg)
+            while len(current) <= segment:
+                current.append(None)
+            if is_last:
+                current[segment] = value
+                return
+            child = current[segment]
+            next_segment = path[position + 1]
+            if not _is_path_container(child, next_segment):
+                child = _new_path_container(
+                    next_segment,
+                    subdict_factory,
+                    list_factory,
+                )
+                current[segment] = child
+        current = child
+
+
+def items_path(
+    value: Any,
+    path: Sequence[PathSegment] = (),
+    *,
+    include_containers: bool = False,
+    preserve_empty: bool = True,
+    max_depth: int | None = None,
+) -> Iterator[tuple[tuple[PathSegment, ...], Any]]:
+    """Yield paths through arbitrarily nested mappings and lists.
+
+    Leaves are always yielded. Empty containers are yielded by default so a
+    traversal does not silently discard them. Set ``include_containers`` to
+    also yield non-empty containers before their children.
+    """
+    current_path = tuple(path)
+    if max_depth is not None and len(current_path) >= max_depth:
+        yield current_path, value
+        return
+    is_mapping = isinstance(value, Mapping)
+    is_sequence = isinstance(value, Sequence) and not isinstance(
+        value, (str, bytes, bytearray)
+    )
+    if not is_mapping and not is_sequence:
+        yield current_path, value
+        return
+    if include_containers:
+        yield current_path, value
+    if not value:
+        if preserve_empty and not include_containers:
+            yield current_path, value
+        return
+    if is_mapping:
+        for key, child in value.items():
+            if not isinstance(key, str):
+                msg = "mapping keys in JSON-compatible paths must be strings"
+                raise TypeError(msg)
+            yield from items_path(
+                child,
+                (*current_path, key),
+                include_containers=include_containers,
+                preserve_empty=preserve_empty,
+                max_depth=max_depth,
+            )
+    else:
+        for index, child in enumerate(value):
+            yield from items_path(
+                child,
+                (*current_path, index),
+                include_containers=include_containers,
+                preserve_empty=preserve_empty,
+                max_depth=max_depth,
+            )
 
 
 def _require_keys(keys: Sequence[str]) -> None:

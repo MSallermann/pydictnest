@@ -10,6 +10,10 @@ from pydictnest import (
     values_nested,
     flatten_dict,
     unflatten_dict,
+    get_path,
+    has_path,
+    items_path,
+    set_path,
 )
 
 
@@ -156,6 +160,113 @@ def test_get_nested_returns_mapping_default_without_traversing_it():
     default = {"child": "not a nested result"}
 
     assert get_nested({}, ["missing", "child"], default=default) is default
+
+
+def test_mixed_mapping_list_paths_distinguish_missing_from_null():
+    value = {"items": [{"value": None}, {"value": 3}]}
+
+    assert has_path(value, ("items", 0, "value"))
+    assert get_path(value, ("items", 0, "value"), "missing") is None
+    assert get_path(value, ("items", 1, "value")) == 3
+    assert not has_path(value, ("items", 2, "value"))
+
+
+def test_items_path_preserves_empty_containers_and_segment_types():
+    value = {"a/b": [{"leaf": 1}, {}], "empty": []}
+
+    assert list(items_path(value)) == [
+        (("a/b", 0, "leaf"), 1),
+        (("a/b", 1), {}),
+        (("empty",), []),
+    ]
+
+
+def test_items_path_depth_limit_and_containers():
+    value = {"items": [1, 2]}
+
+    assert list(items_path(value, max_depth=1)) == [(("items",), [1, 2])]
+    assert list(items_path(value, include_containers=True)) == [
+        ((), value),
+        (("items",), [1, 2]),
+        (("items", 0), 1),
+        (("items", 1), 2),
+    ]
+
+
+def test_set_path_creates_mixed_mapping_list_containers():
+    value = {}
+
+    set_path(value, ("items", 0, "score"), 3)
+    set_path(value, ("items", 1, "score"), 5)
+
+    assert value == {"items": [{"score": 3}, {"score": 5}]}
+
+
+def test_set_path_extends_lists_and_replaces_incompatible_intermediates():
+    value = {"items": None}
+
+    set_path(value, ("items", 2, "score"), 3)
+
+    assert value == {"items": [None, None, {"score": 3}]}
+
+
+def test_set_path_supports_a_list_root():
+    value = []
+
+    set_path(value, (0, "name"), "first")
+
+    assert value == [{"name": "first"}]
+
+
+def test_set_path_uses_custom_container_factories():
+    class CustomDict(dict):
+        pass
+
+    class CustomList(list):
+        pass
+
+    value = {}
+    set_path(
+        value,
+        ("items", 0, "score"),
+        3,
+        subdict_factory=CustomDict,
+        list_factory=CustomList,
+    )
+
+    assert isinstance(value["items"], CustomList)
+    assert isinstance(value["items"][0], CustomDict)
+    assert value == {"items": [{"score": 3}]}
+
+
+@pytest.mark.parametrize(
+    ("path", "factory_name", "kwargs"),
+    [
+        (("item", "score"), "subdict_factory", {"subdict_factory": list}),
+        (("items", 0), "list_factory", {"list_factory": dict}),
+    ],
+)
+def test_set_path_rejects_invalid_container_factories(path, factory_name, kwargs):
+    with pytest.raises(TypeError, match=factory_name):
+        set_path({}, path, 1, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("path", "error", "message"),
+    [
+        ((), ValueError, "at least one segment"),
+        ((-1,), ValueError, "non-negative"),
+        ((True,), TypeError, "strings or integers"),
+    ],
+)
+def test_set_path_rejects_invalid_paths(path, error, message):
+    with pytest.raises(error, match=message):
+        set_path({}, path, 1)
+
+
+def test_set_path_rejects_a_segment_incompatible_with_the_root():
+    with pytest.raises(TypeError, match="cannot use sequence index"):
+        set_path({}, (0,), 1)
 
 
 if __name__ == "__main__":
